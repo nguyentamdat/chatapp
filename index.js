@@ -7,7 +7,7 @@ var path = require('path');
 
 const uname = "nguyentamdat"
 const pword = 'nopass'
-const users = new Map()
+let count = 0
 
 app.use(session({
     secret: 'secret',
@@ -53,14 +53,20 @@ app.post('/admin', (req, res) => {
 });
 
 io.on('connection', function(socket) {
-    console.log("Welcome " + socket.id)
-
-    socket.on('message', function(msg) {
-        socket.broadcast.emit('message', msg);
-    });
-    socket.on('disconnect', () => {
-        console.log("Bye " + socket.id)
-    })
+    if (count >= 2) {
+        socket.emit('disconnect', 'Please wait')
+        socket.conn.close()
+    } else {
+        console.log("Welcome " + socket.id)
+        count++
+        socket.on('message', function(msg) {
+            socket.broadcast.emit('message', msg);
+        });
+        socket.on('disconnect', () => {
+            count--
+            console.log("Bye " + socket.id)
+        })
+    }
 });
 
 http.listen(3000, function() {
