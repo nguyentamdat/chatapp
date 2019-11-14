@@ -2,7 +2,7 @@
 <html>
 
 <head>
-    <title>Socket.IO chat</title>
+    <title>Socket.IO Admin Chat</title>
     <style>
         * {
             margin: 0;
@@ -67,20 +67,25 @@
     <script>
         $(function() {
             var socket = io();
+            socket.emit('admin');
             $('form').submit(function(e) {
                 e.preventDefault(); // prevents page reloading
-                const msg = $('#m').val()
+                const msg = {
+                    type: "msg",
+                    from: "from",
+                    to: "to",
+                    msg: $('#m').val()
+                };
                 console.log(msg)
                 if ($("#m").val() != "") {
                     socket.emit('message', msg);
-                    $('#messages').append($('<li>').text(msg));
+                    $('#messages').append($('<li>').text(msg.msg));
                 }
                 $('#m').val('');
                 return false;
             });
             socket.on('message', function(msg) {
-                console.log(`Receive ${msg}`)
-                $('#messages').append($('<li>').text(msg));
+                $('#messages').append($('<li>').text(msg.msg));
             });
         });
     </script>

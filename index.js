@@ -3,70 +3,53 @@ var session = require('express-session');
 var http = require('http').createServer(app);
 var io = require('socket.io')(http);
 var bodyParser = require('body-parser');
-var path = require('path');
+var net = require('net');
 
-const uname = "nguyentamdat"
-const pword = 'nopass'
-let count = 0
+var sk = net.createConnection(6000, '192.168.0.105', () => {
+    console.log("Connect successful")
+    sk.write(`LOGIN guest ${sk.localPort}\n`)
+})
 
-app.use(session({
-    secret: 'secret',
-    resave: true,
-    saveUninitialized: true,
-}));
+var client;
+
+sk.setEncoding("utf8")
+
+sk.on("data", (data) => {
+    var data = data.toString().replace("\r\n", "")
+    console.log(`Receive data: ${data.toString()}`)
+    var mes = data.toString().split(" ")
+    console.log(mes)
+    if (mes[0] == 'MSG') { io.to(client).emit("message", data.replace("MSG ", "")) }
+})
+
+sk.on("timeout", () => {
+    console.log("Client timeout")
+})
+
+sk.on("close", () => {
+    console.log("On close")
+})
+
+sk.on("drain", () => {
+    console.log("Drain")
+})
 
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
-app.get('/admin', function(req, res) {
-    res.sendFile(__dirname + '/login.html');
-});
-
 app.get('/', (req, res) => {
     res.sendFile(__dirname + '/index.html');
+    sk.write("CHATADMIN\n")
 })
-
-app.get('/support', (req, res) => {
-    if (req.session.loggedin) {
-        res.sendFile(__dirname + '/support.html')
-    } else {
-        res.redirect('/admin');
-    }
-})
-
-app.post('/admin', (req, res) => {
-    const username = req.body.username
-    const password = req.body.password
-    console.log(username)
-    if (username && password) {
-        if (uname == username && pword == password) {
-            req.session.loggedin = true;
-            req.session.username = username;
-            res.redirect('/support');
-        } else {
-            res.send('Please use assistant page instead');
-        }
-    } else {
-        res.send('Please enter Username and Password!');
-        res.end();
-    }
-});
 
 io.on('connection', function(socket) {
-    if (count >= 2) {
-        socket.emit('disconnect', 'Please wait')
-        socket.conn.close()
-    } else {
-        console.log("Welcome " + socket.id)
-        count++
-        socket.on('message', function(msg) {
-            socket.broadcast.emit('message', msg);
-        });
-        socket.on('disconnect', () => {
-            count--
-            console.log("Bye " + socket.id)
-        })
-    }
+    client = socket.id
+    socket.on('message', function(msg) {
+        sk.write(`MSG admin ${msg}\n`)
+    });
+    socket.on('disconnect', () => {
+        console.log("Bye " + socket.id)
+    })
 });
 
 http.listen(3000, function() {
